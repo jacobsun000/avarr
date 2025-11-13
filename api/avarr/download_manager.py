@@ -21,6 +21,7 @@ from .database import get_session
 from .models import DownloadJob, JobStatus
 from .notifier import TelegramNotifier
 from .settings import get_settings
+from .transcoder import TranscodeService
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,9 @@ class DownloadManager:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._progress_checkpoints: Dict[str, float] = {}
         self._shutdown_event = asyncio.Event()
+        self.transcoder = TranscodeService(
+            self.settings.download_root, max_workers=self.settings.transcode_workers
+        )
 
     async def start(self) -> None:
         if self._worker_tasks:
@@ -120,6 +124,7 @@ class DownloadManager:
             self.queue.put_nowait(job_id)
         if resumed_jobs:
             logger.info("Requeued %d incomplete jobs", len(resumed_jobs))
+        self._schedule_transcode_backlog()
         num_workers = self.settings.max_concurrent_downloads
         for worker_id in range(num_workers):
             task = asyncio.create_task(self._worker(worker_id))
@@ -135,6 +140,7 @@ class DownloadManager:
         await asyncio.gather(*self._worker_tasks, return_exceptions=True)
         self._worker_tasks.clear()
         await self.notifier.close()
+        self.transcoder.shutdown()
         logger.info("Download manager stopped")
 
     async def enqueue_job(self, job_id: str) -> None:
@@ -194,6 +200,7 @@ class DownloadManager:
             db_job.set_manifest(result.manifest)
             db_job.error = None
         await self._notify_success(job_id)
+        self.transcoder.schedule_manifest(job_id, result.manifest)
 
     def _run_download(self, job: JobContext) -> DownloadResult:
         dest_dir = (self.settings.download_root / f"{job.id}").resolve()
@@ -282,6 +289,14 @@ class DownloadManager:
                 resumed.append(job.id)
                 job.touch()
         return resumed
+
+    def _schedule_transcode_backlog(self) -> None:
+        with get_session() as session:
+            jobs = session.exec(
+                select(DownloadJob).where(DownloadJob.status == JobStatus.completed)
+            ).all()
+        for job in jobs:
+            self.transcoder.schedule_manifest(job.id, job.file_manifest)
 
     def _build_progress_hook(self, job_id: str):
         def hook(status: dict) -> None:

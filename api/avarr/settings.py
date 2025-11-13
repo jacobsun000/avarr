@@ -45,6 +45,12 @@ class Settings(BaseSettings):
         le=10,
         description="Maximum number of simultaneous downloads (1-10)",
     )
+    transcode_workers: int = Field(
+        default=1,
+        ge=1,
+        le=4,
+        description="Number of parallel ffmpeg jobs for MP4 transcoding",
+    )
 
     model_config = SettingsConfigDict(env_prefix="AVARR_")
 
