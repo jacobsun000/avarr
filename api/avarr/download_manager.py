@@ -7,6 +7,7 @@ import base64
 import json
 import logging
 import re
+import shutil
 import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from yt_dlp import YoutubeDL
+from sqlmodel import select
 
 from .database import get_session
 from .models import DownloadJob, JobStatus
@@ -113,6 +115,11 @@ class DownloadManager:
         self._loop = asyncio.get_running_loop()
         self._shutdown_event.clear()
         await self.notifier.start()
+        resumed_jobs = self._recover_incomplete_jobs()
+        for job_id in resumed_jobs:
+            self.queue.put_nowait(job_id)
+        if resumed_jobs:
+            logger.info("Requeued %d incomplete jobs", len(resumed_jobs))
         num_workers = self.settings.max_concurrent_downloads
         for worker_id in range(num_workers):
             task = asyncio.create_task(self._worker(worker_id))
@@ -190,6 +197,8 @@ class DownloadManager:
 
     def _run_download(self, job: JobContext) -> DownloadResult:
         dest_dir = (self.settings.download_root / f"{job.id}").resolve()
+        if dest_dir.exists():
+            shutil.rmtree(dest_dir)
         dest_dir.mkdir(parents=True, exist_ok=True)
         progress_hook = self._build_progress_hook(job.id)
         outtmpl = str(dest_dir / "%(title).200B_%(id)s.%(ext)s")
@@ -253,6 +262,26 @@ class DownloadManager:
             description_path=description_rel,
             manifest=manifest,
         )
+
+    def _recover_incomplete_jobs(self) -> List[str]:
+        with get_session() as session:
+            statement = select(DownloadJob).where(
+                DownloadJob.status.in_((JobStatus.pending, JobStatus.running))
+            )
+            jobs = session.exec(statement).all()
+            resumed: List[str] = []
+            for job in jobs:
+                if job.status == JobStatus.running:
+                    job.status = JobStatus.pending
+                    job.progress = 0.0
+                    job.output_dir = None
+                    job.metadata_path = None
+                    job.description_path = None
+                    job.file_manifest = []
+                    job.error = None
+                resumed.append(job.id)
+                job.touch()
+        return resumed
 
     def _build_progress_hook(self, job_id: str):
         def hook(status: dict) -> None:
