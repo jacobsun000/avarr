@@ -1,0 +1,21 @@
+[project]
+name = "avarr"
+version = "0.1.0"
+description = "Telegram-driven yt-dlp download orchestrator"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "aiofiles>=24.1.0",
+    "fastapi>=0.115.4",
+    "httpx>=0.27.2",
+    "pydantic-settings>=2.6.1",
+    "python-multipart>=0.0.9",
+    "sqlmodel>=0.0.22",
+    "uvicorn[standard]>=0.32.0",
+    "yt-dlp>=2025.10.22",
+    "yt-dlp-51cg>=0.1.0",
+    "yt-dlp-plugin-yellow",
+]
+
+[tool.uv.sources]
+yt-dlp-plugin-yellow = { git = "https://github.com/wmrussell8653/yt-dlp-plugin-yellow.git" }

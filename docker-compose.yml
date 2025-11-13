@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  avarr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: avarr-app:latest
+    container_name: avarr
+    env_file:
+      - ./api/.env
+    environment:
+      AVARR_DOWNLOAD_ROOT: ${AVARR_DOWNLOAD_ROOT:-/app/downloads}
+      AVARR_DATABASE_URL: ${AVARR_DATABASE_URL:-sqlite:///./storage/storage.db}
+      AVARR_ALLOWED_SOURCE_DOMAINS: ${AVARR_ALLOWED_SOURCE_DOMAINS:-}
+      AVARR_BASE_EXTERNAL_URL: ${AVARR_BASE_EXTERNAL_URL:-}
+      AVARR_TELEGRAM_BOT_TOKEN: ${AVARR_TELEGRAM_BOT_TOKEN:-}
+      AVARR_TELEGRAM_WEBHOOK_SECRET: ${AVARR_TELEGRAM_WEBHOOK_SECRET:-}
+      AVARR_NOTIFIER_MIN_PERCENT_STEP: ${AVARR_NOTIFIER_MIN_PERCENT_STEP:-10}
+      PORT: ${AVARR_INTERNAL_PORT:-8000}
+    ports:
+      - "${AVARR_HOST_PORT:-8080}:${AVARR_INTERNAL_PORT:-8000}"
+    volumes:
+      - downloads_data:/app/downloads
+      - storage_data:/app/api/storage
+    restart: unless-stopped
+
+volumes:
+  downloads_data:
+  storage_data:
