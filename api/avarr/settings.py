@@ -46,9 +46,7 @@ class Settings(BaseSettings):
         description="Maximum number of simultaneous downloads (1-10)",
     )
 
-    model_config = SettingsConfigDict(
-        env_prefix="AVARR_", env_file=".env", env_file_encoding="utf-8"
-    )
+    model_config = SettingsConfigDict(env_prefix="AVARR_")
 
 
 @lru_cache(maxsize=1)

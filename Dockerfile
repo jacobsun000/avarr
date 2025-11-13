@@ -30,6 +30,8 @@ ENV PATH="/root/.local/bin:${PATH}"
 WORKDIR /app/api
 COPY api/pyproject.toml api/uv.lock ./
 RUN uv sync --frozen --no-dev
+RUN uv run playwright install chromium
+RUN uv run playwright install-deps
 
 COPY api /app/api
 COPY --from=web-build /app/web/dist ./webui/dist
@@ -37,15 +39,7 @@ COPY --from=web-build /app/web/dist ./webui/dist
 RUN mkdir -p /app/downloads /app/api/storage
 
 ENV VIRTUAL_ENV=/app/api/.venv \
-    PATH="/app/api/.venv/bin:${PATH}" \
-    AVARR_DOWNLOAD_ROOT=/app/downloads \
-    AVARR_DATABASE_URL=sqlite:///./storage/storage.db \
-    AVARR_ALLOWED_SOURCE_DOMAINS= \
-    AVARR_BASE_EXTERNAL_URL= \
-    AVARR_TELEGRAM_BOT_TOKEN= \
-    AVARR_TELEGRAM_WEBHOOK_SECRET= \
-    AVARR_NOTIFIER_MIN_PERCENT_STEP=10 \
-    PORT=8000
+    PATH="/app/api/.venv/bin:${PATH}"
 
 VOLUME ["/app/downloads", "/app/api/storage"]
 

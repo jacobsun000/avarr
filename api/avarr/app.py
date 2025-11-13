@@ -58,9 +58,9 @@ def create_app() -> FastAPI:
     if downloads_dir.exists():
         app.mount("/downloads", StaticFiles(directory=downloads_dir), name="downloads")
 
-    webui_dir = Path("web/dist")
+    webui_dir = Path("webui/dist")
     if webui_dir.exists():
-        app.mount("/app", StaticFiles(directory=webui_dir, html=True), name="webui")
+        app.mount("/", StaticFiles(directory=webui_dir, html=True), name="webui")
 
     return app
 
