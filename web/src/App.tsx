@@ -480,10 +480,10 @@ function App() {
         )}
 
         {(!isMobile || mobileView !== 'queue') && (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
             {(!isMobile || mobileView === 'jobs') && (
-              <Card className="border-border/60 bg-card/85">
-                <CardHeader className="pb-4">
+              <Card className="border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col">
+                <CardHeader className="pb-4 lg:flex-shrink-0">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <CardTitle>Jobs</CardTitle>
@@ -525,7 +525,7 @@ function App() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3 lg:flex-1 lg:overflow-y-auto">
                   {filteredJobs.length === 0 && jobs.length > 0 && <p className="text-sm text-muted-foreground">No jobs match the current filters.</p>}
                   {jobs.length === 0 && <p className="text-sm text-muted-foreground">No jobs queued yet.</p>}
                   {filteredJobs.map((job) => {
@@ -605,17 +605,17 @@ function App() {
             )}
 
             {(!isMobile || mobileView === 'details') && (
-              <Card className="border-border/60 bg-card/85">
-                <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
+              <Card className="border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col">
+                <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between lg:flex-shrink-0">
+                  <div className="min-w-0">
                     <CardTitle>Job Details</CardTitle>
-                    {selectedJob && <CardDescription>Job ID: {selectedJob.id}</CardDescription>}
+                    {selectedJob && <CardDescription className="break-all">Job ID: {selectedJob.id}</CardDescription>}
                   </div>
                   {selectedJob && (
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="gap-2"
+                      className="gap-2 flex-shrink-0"
                       disabled={removalDisabled}
                       onClick={() => handleRemoveJob(selectedJob.id)}
                       title={removalTooltip}
@@ -629,10 +629,10 @@ function App() {
                     </Button>
                   )}
                 </CardHeader>
-                <CardContent className="space-y-5 overflow-x-hidden sm:space-y-6">
+                <CardContent className="space-y-5 overflow-x-hidden sm:space-y-6 lg:flex-1 lg:overflow-y-auto">
                   {selectedJob ? (
-                    <div className="space-y-5">
-                      <div className="space-y-3">
+                    <div className="space-y-5 overflow-x-hidden">
+                      <div className="space-y-3 overflow-x-hidden">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-semibold">Thumbnails</h3>
                           <span className="text-xs text-muted-foreground">{thumbnailUrls.length} found</span>
@@ -640,38 +640,40 @@ function App() {
                         {thumbnailUrls.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No thumbnails saved yet.</p>
                         ) : (
-                          <Carousel>
-                            <CarouselContent>
-                              {/* {thumbnailUrls.slice(0, thumbnailUrls.length - 1).map((thumb, index) => ( */}
-                              {thumbnailUrls.map((thumb, index) => (
-                                <CarouselItem key={thumb.path} className="basis-64">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleOpenPreview(index)}
-                                    className="group flex w-full items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-background"
-                                  >
-                                    <img
-                                      src={thumb.url}
-                                      alt={thumb.path}
-                                      loading="lazy"
-                                      className="max-h-full w-full object-contain transition duration-200 group-hover:scale-[1.02]"
-                                      onError={(event) => {
-                                        event.currentTarget.src = PLACEHOLDER_THUMBNAIL
-                                      }}
-                                    />
-                                  </button>
-                                </CarouselItem>
-                              ))}
-                            </CarouselContent>
-                            <CarouselPrevious className={thumbnailUrls.length <= 1 ? 'lg:hidden' : undefined} />
-                            <CarouselNext className={thumbnailUrls.length <= 1 ? 'lg:hidden' : undefined} />
-                          </Carousel>
+                          <div className="overflow-x-hidden">
+                            <Carousel>
+                              <CarouselContent>
+                                {/* {thumbnailUrls.slice(0, thumbnailUrls.length - 1).map((thumb, index) => ( */}
+                                {thumbnailUrls.map((thumb, index) => (
+                                  <CarouselItem key={thumb.path} className="basis-full sm:basis-64">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleOpenPreview(index)}
+                                      className="group flex w-full items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-background"
+                                    >
+                                      <img
+                                        src={thumb.url}
+                                        alt={thumb.path}
+                                        loading="lazy"
+                                        className="max-h-full w-full object-contain transition duration-200 group-hover:scale-[1.02]"
+                                        onError={(event) => {
+                                          event.currentTarget.src = PLACEHOLDER_THUMBNAIL
+                                        }}
+                                      />
+                                    </button>
+                                  </CarouselItem>
+                                ))}
+                              </CarouselContent>
+                              <CarouselPrevious className={thumbnailUrls.length <= 1 ? 'lg:hidden' : undefined} />
+                              <CarouselNext className={thumbnailUrls.length <= 1 ? 'lg:hidden' : undefined} />
+                            </Carousel>
+                          </div>
                         )}
                       </div>
 
                       <Separator className="border-border/50" />
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 overflow-x-hidden">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-semibold">Videos</h3>
                           <span className="text-xs text-muted-foreground">{videoSources.length} streamable files</span>
@@ -679,26 +681,27 @@ function App() {
                         {videoSources.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No video files available yet.</p>
                         ) : (
-                          <div className="space-y-4">
+                          <div className="space-y-4 overflow-x-hidden">
                             {videoSources.map((video) => (
-                              <div key={video.path} className="space-y-2 rounded-2xl border border-border/50 bg-muted/10 p-4">
+                              <div key={video.path} className="space-y-2 overflow-hidden rounded-2xl border border-border/50 bg-muted/10 p-4">
                                 <video
                                   controls
                                   preload="metadata"
-                                  className="w-full rounded-xl bg-black"
+                                  className="max-w-full rounded-xl bg-black"
                                   src={video.url}
                                   controlsList="nodownload"
                                 >
                                   <track kind="captions" />
                                 </video>
-                                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-                                  <span className="min-w-0 truncate">{video.path}</span>
+                                <div className="flex flex-col gap-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                  <span className="min-w-0 break-all">{video.path}</span>
                                   <a
                                     href={video.url}
                                     target="_blank"
                                     rel="noreferrer"
                                     className="flex flex-shrink-0 items-center gap-1 font-medium text-primary hover:underline"
                                   >
+                                    <ExternalLink className="h-3 w-3" />
                                     Open file
                                   </a>
                                 </div>
@@ -710,44 +713,44 @@ function App() {
 
                       <Separator className="border-border/50" />
 
-                      <div className="space-y-3 rounded-2xl border border-border/50 bg-muted/20 p-4">
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
+                      <div className="space-y-3 overflow-hidden rounded-2xl border border-border/50 bg-muted/20 p-4">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                          <div className="min-w-0 overflow-hidden">
                             <p className="text-sm text-muted-foreground">Title</p>
-                            <p className="text-lg font-semibold line-clamp-2">
+                            <p className="break-words text-lg font-semibold">
                               {selectedJob.title ?? 'Untitled job'}
                             </p>
                           </div>
-                          <Badge variant={statusToVariant[selectedJob.status]}>{selectedJob.status}</Badge>
+                          <Badge variant={statusToVariant[selectedJob.status]} className="self-start sm:self-auto">{selectedJob.status}</Badge>
                         </div>
-                        <div className="space-y-2 text-sm text-foreground/80">
-                          <div className="flex items-center gap-2">
-                            <ExternalLink className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                        <div className="space-y-2 overflow-hidden text-sm text-foreground/80">
+                          <div className="flex items-start gap-2 overflow-hidden">
+                            <ExternalLink className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                             <a
                               href={selectedJob.source_url}
                               target="_blank"
                               rel="noreferrer"
-                              className="min-w-0 flex-1 truncate text-primary hover:underline"
+                              className="min-w-0 flex-1 break-all text-primary hover:underline"
                             >
                               {selectedJob.source_url}
                             </a>
                           </div>
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                             <span>Progress: {selectedJob.progress.toFixed(1)}%</span>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2 overflow-hidden">
                             <span className="text-muted-foreground">Created:</span>
-                            <span>{formatAbsolute(selectedJob.created_at)}</span>
+                            <span className="break-all">{formatAbsolute(selectedJob.created_at)}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
                             Updated {formatRelativeShort(selectedJob.updated_at)}
                           </div>
                           {selectedJob.error && (
-                            <p className="text-sm text-destructive">Error: {selectedJob.error}</p>
+                            <p className="break-words text-sm text-destructive">{selectedJob.error}</p>
                           )}
                           {selectedJob.output_dir && (
-                            <div className="text-xs text-muted-foreground">
+                            <div className="overflow-hidden text-xs text-muted-foreground">
                               <span>Folder:</span>
                               <code className="ml-2 block break-all rounded bg-card px-2 py-0.5 text-xs text-foreground">
                                 /downloads/{selectedJob.output_dir}
@@ -759,7 +762,7 @@ function App() {
 
                       <Separator className="border-border/50" />
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 overflow-x-hidden">
                         <div className="flex items-center gap-2">
                           <h3 className="text-base font-semibold">Description</h3>
                         </div>
@@ -767,7 +770,7 @@ function App() {
                           <p className="text-sm text-muted-foreground">No description provided by the source.</p>
                         )}
                         {selectedJob.description_path && (
-                          <div className="rounded-2xl border border-border/50 bg-muted/10 p-4 text-sm leading-relaxed">
+                          <div className="overflow-hidden rounded-2xl border border-border/50 bg-muted/10 p-4 text-sm leading-relaxed">
                             {descriptionState?.loading && <p className="text-muted-foreground">Loading description...</p>}
                             {descriptionState?.error && (
                               <p className="text-destructive">Failed to load description: {descriptionState.error}</p>
@@ -781,7 +784,7 @@ function App() {
 
                       <Separator className="border-border/50" />
 
-                      <div className="space-y-3">
+                      <div className="space-y-3 overflow-x-hidden">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-semibold">Files</h3>
                           <span className="text-xs text-muted-foreground">{selectedJob.file_manifest.length} items</span>
