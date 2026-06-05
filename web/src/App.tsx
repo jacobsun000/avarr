@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
-import { Loader2, RefreshCw, ExternalLink, FileText, ChevronLeft, ChevronRight, X, Trash2, Star, Eye } from 'lucide-react'
+import { Loader2, ExternalLink, FileText, ChevronLeft, ChevronRight, X, Trash2, Star, Eye, ClipboardPaste } from 'lucide-react'
 
-import { API_BASE, buildDownloadUrl, createJob, deleteJob, listJobs, updateJobFlags } from './api'
+import { buildDownloadUrl, createJob, deleteJob, listJobs, updateJobFlags } from './api'
 import type { Job } from './api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +32,7 @@ type DescriptionState = {
 
 const IMAGE_NAME_REGEX = /\.(jpe?g|png|webp|gif|avif|bmp|svg)$/i
 const VIDEO_NAME_REGEX = /\.(mp4|mkv|webm|mov|m4v|avi|ts|m2ts|flv|ogg|m3u8)$/i
-type MobileView = 'queue' | 'jobs' | 'details'
+type MobileView = 'jobs' | 'details'
 
 const formatRelativeShort = (isoDate: string): string => {
   const timestamp = new Date(isoDate).getTime()
@@ -137,8 +137,7 @@ function App() {
   const [filterWatched, setFilterWatched] = useState<boolean | null>(null)
   const [filterStarred, setFilterStarred] = useState<boolean | null>(null)
   const isMobile = useMediaQuery('(max-width: 768px)')
-  const [mobileView, setMobileView] = useState<MobileView>('queue')
-  const pageRef = useRef<HTMLDivElement | null>(null)
+  const [mobileView, setMobileView] = useState<MobileView>('jobs')
 
   const selectedJob = useMemo(
     () => jobs.find((job) => job.id === selectedJobId) ?? jobs[0] ?? null,
@@ -146,8 +145,8 @@ function App() {
   )
 
   useEffect(() => {
-    if (!isMobile && mobileView !== 'queue') {
-      setMobileView('queue')
+    if (!isMobile && mobileView !== 'jobs') {
+      setMobileView('jobs')
     }
   }, [isMobile, mobileView])
 
@@ -156,6 +155,17 @@ function App() {
       setMobileView('jobs')
     }
   }, [isMobile, mobileView, selectedJob])
+
+  useEffect(() => {
+    if (!isMobile || mobileView !== 'details') {
+      return
+    }
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isMobile, mobileView])
 
   const refreshJobs = useCallback(async () => {
     try {
@@ -221,21 +231,21 @@ function App() {
     setPreviewIndex(null)
   }, [selectedJob?.id])
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!url.trim()) {
-      setError('Enter a URL to queue a download')
+  const queueDownloads = useCallback(async (rawUrls: string, emptyMessage: string) => {
+    if (!rawUrls.trim()) {
+      setError(emptyMessage)
+      setLoading(false)
       return
     }
 
-    // Parse multiple URLs separated by newlines
-    const urls = url
+    const urls = rawUrls
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
 
     if (urls.length === 0) {
       setError('Enter at least one valid URL')
+      setLoading(false)
       return
     }
 
@@ -273,6 +283,27 @@ function App() {
     } catch (err) {
       setError((err as Error).message)
     } finally {
+      setLoading(false)
+    }
+  }, [refreshJobs])
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    await queueDownloads(url, 'Enter a URL to queue a download')
+  }
+
+  const handleClipboardStart = async () => {
+    if (!navigator.clipboard?.readText) {
+      setError('Clipboard access is not available in this browser')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const clipboardText = await navigator.clipboard.readText()
+      await queueDownloads(clipboardText, 'Clipboard does not contain a URL')
+    } catch (err) {
+      setError((err as Error).message || 'Unable to read clipboard')
       setLoading(false)
     }
   }
@@ -362,11 +393,6 @@ function App() {
     : removalBlocked
       ? 'Only completed or failed jobs can be removed'
       : undefined
-  const mobileTabs: { id: MobileView; label: string }[] = [
-    { id: 'queue', label: 'Queue' },
-    { id: 'jobs', label: `Jobs (${filteredJobs.length})` },
-    { id: 'details', label: selectedJob ? 'Details' : 'Details (pick job)' },
-  ]
 
   const handleOpenPreview = (index: number) => {
     setPreviewIndex(index)
@@ -409,46 +435,26 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div ref={pageRef} className="mx-auto flex w-full flex-col gap-6 px-4 py-8 sm:px-6 lg:px-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto flex w-full flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:px-10">
+        <header aria-hidden={isMobile && mobileView === 'details'} className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">Repository Download Control</h1>
-            <p className="text-sm text-muted-foreground">Backend: {API_BASE}</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Avarr</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={refreshJobs} disabled={loading} className="gap-2">
-              <RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /> Refresh
+          {isMobile && (
+            <Button onClick={handleClipboardStart} disabled={loading} className="shrink-0">
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <ClipboardPaste className="h-4 w-4" />
+              )}
+              Download
             </Button>
-          </div>
+          )}
         </header>
 
-        {isMobile && (
-          <div className="sticky top-0 z-20 -mx-4 flex gap-2 overflow-x-auto rounded-2xl bg-card/90 px-4 py-2 shadow sm:hidden">
-            {mobileTabs.map((tab) => {
-              const disabled = tab.id === 'details' && !selectedJob
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  className={cn(
-                    'flex-1 rounded-xl px-3 py-2 text-sm font-semibold tracking-tight transition',
-                    mobileView === tab.id
-                      ? 'bg-primary text-primary-foreground shadow'
-                      : 'bg-muted/60 text-muted-foreground',
-                    disabled && 'opacity-50',
-                  )}
-                  onClick={() => !disabled && setMobileView(tab.id)}
-                  disabled={disabled}
-                  aria-pressed={mobileView === tab.id}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        {isMobile && error && <p className="whitespace-pre-wrap text-sm text-destructive">{error}</p>}
 
-        {(!isMobile || mobileView === 'queue') && (
+        {!isMobile && (
           <Card className="border-border/60 bg-card/90 shadow-2xl">
             <CardHeader className="pb-4">
               <CardTitle>Queue a Download</CardTitle>
@@ -479,11 +485,15 @@ function App() {
           </Card>
         )}
 
-        {(!isMobile || mobileView !== 'queue') && (
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-            {(!isMobile || mobileView === 'jobs') && (
-              <Card className="border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col">
-                <CardHeader className="pb-4 lg:flex-shrink-0">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+          <Card
+            aria-hidden={isMobile && mobileView === 'details'}
+            className={cn(
+              'border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col',
+              isMobile && 'rounded-none border-0 bg-transparent shadow-none',
+            )}
+          >
+                <CardHeader className={cn('pb-4 lg:shrink-0', isMobile && 'px-0 pt-0')}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <CardTitle>Jobs</CardTitle>
@@ -525,7 +535,7 @@ function App() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent className="space-y-3 lg:flex-1 lg:overflow-y-auto">
+                <CardContent className={cn('space-y-3 lg:flex-1 lg:overflow-y-auto', isMobile && 'px-0 pb-0')}>
                   {filteredJobs.length === 0 && jobs.length > 0 && <p className="text-sm text-muted-foreground">No jobs match the current filters.</p>}
                   {jobs.length === 0 && <p className="text-sm text-muted-foreground">No jobs queued yet.</p>}
                   {filteredJobs.map((job) => {
@@ -540,7 +550,6 @@ function App() {
                           setSelectedJobId(job.id)
                           if (isMobile) {
                             setMobileView('details')
-                            pageRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                           }
                         }}
                         className={cn(
@@ -551,7 +560,7 @@ function App() {
                         <img
                           src={preview}
                           alt={job.title ?? job.source_url}
-                          className="h-40 w-full flex-none rounded-xl object-cover sm:h-16 sm:w-20"
+                          className="h-40 w-full flex-none rounded-xl object-cover sm:h-16 sm:w-10"
                           loading="lazy"
                           onError={(event) => {
                             event.currentTarget.src = PLACEHOLDER_THUMBNAIL
@@ -559,12 +568,14 @@ function App() {
                         />
                         <div className="flex min-w-0 flex-1 flex-col gap-2">
                           <div className="flex flex-col gap-1">
-                            <p className="line-clamp-2 text-base font-semibold sm:line-clamp-1">
+                            <p className="line-clamp-2 text-base font-semibold sm:line-clamp-2">
                               {job.title ?? 'Untitled job'}
                             </p>
-                            <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1">
-                              {job.source_url}
-                            </p>
+                            {!isMobile &&
+                              <p className="line-clamp-2 text-xs text-muted-foreground sm:line-clamp-1">
+                                {job.source_url}
+                              </p>
+                            }
                           </div>
                           <div className="flex flex-wrap items-center gap-2 text-xs">
                             <Badge variant={statusToVariant[job.status]} className="uppercase tracking-tight">
@@ -601,12 +612,27 @@ function App() {
                     )
                   })}
                 </CardContent>
-              </Card>
-            )}
+          </Card>
 
-            {(!isMobile || mobileView === 'details') && (
-              <Card className="border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col">
-                <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between lg:flex-shrink-0">
+          {(!isMobile || mobileView === 'details') && (
+              <Card
+                className={cn(
+                  'border-border/60 bg-card/85 lg:flex lg:h-[calc(100vh-16rem)] lg:flex-col',
+                  isMobile && 'fixed inset-0 z-30 h-dvh overflow-y-auto rounded-none border-0 bg-background shadow-none',
+                )}
+              >
+                <CardHeader className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between lg:shrink-0">
+                  {isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMobileView('jobs')}
+                      className="-ml-2 w-fit gap-1.5"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      Back
+                    </Button>
+                  )}
                   <div className="min-w-0">
                     <CardTitle>Job Details</CardTitle>
                     {selectedJob && <CardDescription className="break-all">Job ID: {selectedJob.id}</CardDescription>}
@@ -615,7 +641,7 @@ function App() {
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="gap-2 flex-shrink-0"
+                      className="gap-2 shrink-0"
                       disabled={removalDisabled}
                       onClick={() => handleRemoveJob(selectedJob.id)}
                       title={removalTooltip}
@@ -632,6 +658,29 @@ function App() {
                 <CardContent className="space-y-5 overflow-x-hidden sm:space-y-6 lg:flex-1 lg:overflow-y-auto">
                   {selectedJob ? (
                     <div className="space-y-5 overflow-x-hidden">
+
+                      <Separator className="border-border/50" />
+
+                      <div className="space-y-3 overflow-x-hidden">
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-base font-semibold">Description</h3>
+                        </div>
+                        {!selectedJob.description_path && (
+                          <p className="text-sm text-muted-foreground">No description provided by the source.</p>
+                        )}
+                        {selectedJob.description_path && (
+                          <div className="overflow-hidden rounded-2xl border border-border/50 bg-muted/10 p-4 text-sm leading-relaxed">
+                            {descriptionState?.loading && <p className="text-muted-foreground">Loading description...</p>}
+                            {descriptionState?.error && (
+                              <p className="text-destructive">Failed to load description: {descriptionState.error}</p>
+                            )}
+                            {!descriptionState?.loading && !descriptionState?.error && (
+                              <p className="whitespace-pre-wrap wrap-break-words overflow-wrap-anywhere">{descriptionState?.content ?? 'No description content.'}</p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="space-y-3 overflow-x-hidden">
                         <div className="flex items-center justify-between">
                           <h3 className="text-base font-semibold">Thumbnails</h3>
@@ -639,12 +688,32 @@ function App() {
                         </div>
                         {thumbnailUrls.length === 0 ? (
                           <p className="text-sm text-muted-foreground">No thumbnails saved yet.</p>
-                        ) : (
+                        ) : isMobile ? <div>
+                          {thumbnailUrls.slice(0, -1).map((thumb, index) => (
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenPreview(index)}
+                                className="group flex w-full items-center justify-center overflow-hidden rounded-2xl border border-border/50 bg-background"
+                              >
+                                <img
+                                  src={thumb.url}
+                                  alt={thumb.path}
+                                  loading="lazy"
+                                  className="max-h-full w-full object-contain transition duration-200 group-hover:scale-[1.02]"
+                                  onError={(event) => {
+                                    event.currentTarget.src = PLACEHOLDER_THUMBNAIL
+                                  }}
+                                />
+                              </button>
+                            </div>
+                          ))}
+                        </div> : (
                           <div className="overflow-x-hidden">
                             <Carousel>
                               <CarouselContent>
                                 {/* {thumbnailUrls.slice(0, thumbnailUrls.length - 1).map((thumb, index) => ( */}
-                                {thumbnailUrls.map((thumb, index) => (
+                                {thumbnailUrls.slice(0, -1).map((thumb, index) => (
                                   <CarouselItem key={thumb.path} className="basis-full sm:basis-64">
                                     <button
                                       type="button"
@@ -670,6 +739,7 @@ function App() {
                           </div>
                         )}
                       </div>
+
 
                       <Separator className="border-border/50" />
 
@@ -699,7 +769,7 @@ function App() {
                                     href={video.url}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="flex flex-shrink-0 items-center gap-1 font-medium text-primary hover:underline"
+                                    className="flex shrink-0 items-center gap-1 font-medium text-primary hover:underline"
                                   >
                                     <ExternalLink className="h-3 w-3" />
                                     Open file
@@ -717,7 +787,7 @@ function App() {
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                           <div className="min-w-0 overflow-hidden">
                             <p className="text-sm text-muted-foreground">Title</p>
-                            <p className="break-words text-lg font-semibold">
+                            <p className="wrap-break-words text-lg font-semibold">
                               {selectedJob.title ?? 'Untitled job'}
                             </p>
                           </div>
@@ -725,7 +795,7 @@ function App() {
                         </div>
                         <div className="space-y-2 overflow-hidden text-sm text-foreground/80">
                           <div className="flex items-start gap-2 overflow-hidden">
-                            <ExternalLink className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <ExternalLink className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                             <a
                               href={selectedJob.source_url}
                               target="_blank"
@@ -736,7 +806,7 @@ function App() {
                             </a>
                           </div>
                           <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                            <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span>Progress: {selectedJob.progress.toFixed(1)}%</span>
                           </div>
                           <div className="flex flex-wrap items-center gap-2 overflow-hidden">
@@ -747,7 +817,7 @@ function App() {
                             Updated {formatRelativeShort(selectedJob.updated_at)}
                           </div>
                           {selectedJob.error && (
-                            <p className="break-words text-sm text-destructive">{selectedJob.error}</p>
+                            <p className="wrap-break-words text-sm text-destructive">{selectedJob.error}</p>
                           )}
                           {selectedJob.output_dir && (
                             <div className="overflow-hidden text-xs text-muted-foreground">
@@ -758,28 +828,6 @@ function App() {
                             </div>
                           )}
                         </div>
-                      </div>
-
-                      <Separator className="border-border/50" />
-
-                      <div className="space-y-3 overflow-x-hidden">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-base font-semibold">Description</h3>
-                        </div>
-                        {!selectedJob.description_path && (
-                          <p className="text-sm text-muted-foreground">No description provided by the source.</p>
-                        )}
-                        {selectedJob.description_path && (
-                          <div className="overflow-hidden rounded-2xl border border-border/50 bg-muted/10 p-4 text-sm leading-relaxed">
-                            {descriptionState?.loading && <p className="text-muted-foreground">Loading description...</p>}
-                            {descriptionState?.error && (
-                              <p className="text-destructive">Failed to load description: {descriptionState.error}</p>
-                            )}
-                            {!descriptionState?.loading && !descriptionState?.error && (
-                              <p className="whitespace-pre-wrap break-words overflow-wrap-anywhere">{descriptionState?.content ?? 'No description content.'}</p>
-                            )}
-                          </div>
-                        )}
                       </div>
 
                       <Separator className="border-border/50" />
@@ -814,7 +862,6 @@ function App() {
               </Card>
             )}
           </div>
-        )}
       </div>
       {currentPreview && (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/80 backdrop-blur">
