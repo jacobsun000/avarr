@@ -16,9 +16,12 @@ AVARR_TELEGRAM_BOT_TOKEN=<bot_token>
 AVARR_TELEGRAM_WEBHOOK_SECRET=<random_string>
 AVARR_ALLOWED_SOURCE_DOMAINS=example.com,another.example
 AVARR_DOWNLOAD_ROOT=downloads
+AVARR_YTDLP_COOKIE_FILE=/absolute/path/to/cookies.txt
 # Optional: parallel ffmpeg workers (default 1)
 AVARR_TRANSCODE_WORKERS=2
 ```
+
+`AVARR_YTDLP_COOKIE_FILE` should point to a Netscape-format cookie jar (exported via browser extensions or `yt-dlp --cookies-from-browser`) so plugins like `yt-dlp-yellow` can reuse the authenticated session without copying secrets into the repository.
 
 ### Install & Run
 

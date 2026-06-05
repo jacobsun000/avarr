@@ -18,7 +18,8 @@ class Settings(BaseSettings):
         description="SQLAlchemy connection string for persistence",
     )
     download_root: Path = Field(
-        default=Path("downloads"), description="Folder where assets are stored"
+        default=Path("/home/jacob/Downloads/avarr"),
+        description="Folder where assets are stored",
     )
     telegram_bot_token: Optional[str] = Field(
         default=None, description="Bot token used for sending Telegram updates"
@@ -51,6 +52,10 @@ class Settings(BaseSettings):
         le=4,
         description="Number of parallel ffmpeg jobs for MP4 transcoding",
     )
+    ytdlp_cookie_file: Optional[Path] = Field(
+        default=None,
+        description="Optional Netscape cookie jar passed to yt-dlp for plugin auth",
+    )
 
     model_config = SettingsConfigDict(env_prefix="AVARR_")
 
@@ -62,6 +67,10 @@ def get_settings() -> Settings:
     settings = Settings()
     settings.download_root = Path(settings.download_root).expanduser().resolve()
     settings.download_root.mkdir(parents=True, exist_ok=True)
+    if settings.ytdlp_cookie_file is not None:
+        settings.ytdlp_cookie_file = (
+            Path(settings.ytdlp_cookie_file).expanduser().resolve()
+        )
     return settings
 
 

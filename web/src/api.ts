@@ -19,7 +19,7 @@ export type Job = {
 }
 
 const normalizeBase = () => {
-  const raw = import.meta.env.VITE_API_BASE_URL ?? ''
+  const raw = import.meta.env.VITE_API_BASE_URL ?? 'http://arch:8000'
   return raw.endsWith('/') ? raw.slice(0, -1) : raw
 }
 

@@ -45,4 +45,4 @@ VOLUME ["/app/downloads", "/app/api/storage"]
 
 EXPOSE 8000
 
-CMD ["uvicorn", "avarr.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "main.py"]

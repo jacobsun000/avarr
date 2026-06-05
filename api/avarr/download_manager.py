@@ -220,6 +220,13 @@ class DownloadManager:
             "paths": {"home": str(dest_dir)},
         }
 
+        if self.settings.ytdlp_cookie_file:
+            cookie_file = self.settings.ytdlp_cookie_file
+            if not cookie_file.exists():
+                logger.warning("yt-dlp cookie file %s not found", cookie_file)
+            else:
+                ydl_opts["cookiefile"] = str(cookie_file)
+
         logger.info("Starting download for job %s", job.id)
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(job.source_url, download=True)

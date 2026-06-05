@@ -6,6 +6,7 @@ This repository hosts a FastAPI backend (`api/`) and a React dashboard (`web/`) 
 
 1. **Backend** (`api/`)
    - Copy `.env.example` to `.env` and set Telegram + storage settings (use an absolute `AVARR_DOWNLOAD_ROOT`).
+   - Provide a Netscape cookie jar via `AVARR_YTDLP_COOKIE_FILE=/path/to/cookies.txt` if yt-dlp plugins (e.g., Yellow) require auth.
    - Run `uv sync` then `uv run uvicorn avarr.app:app --reload`.
 2. **Frontend** (`web/`)
    - Install dependencies with `pnpm install`.
